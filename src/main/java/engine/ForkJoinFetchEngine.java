@@ -9,7 +9,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CancellationException;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.Future;
 import java.util.concurrent.RecursiveTask;
@@ -25,11 +24,6 @@ public class ForkJoinFetchEngine extends BaseFetchEngine {
      */
     private Logger log = LoggerFactory.getLogger(getClass());
 
-    /**
-     * fork-join工作线程池。
-     */
-    private ForkJoinPool forkJoinPool;
-
     @Override
     public Map<HttpRequestModel, String> getResult(List<HttpRequestModel> modelList) {
         log.info("ForkJoinFetchEngine start fetching data. List size: {}", modelList.size());
@@ -37,27 +31,21 @@ public class ForkJoinFetchEngine extends BaseFetchEngine {
         Map<HttpRequestModel, String> returnValue = new HashMap<>();
         //执行任务的线程是任务树的叶子节点，需要让所有节点一起执行，需要把整棵树纳入到工作线程池中
         //即线程池的并发数等于树的节点数
-        forkJoinPool = new ForkJoinPool(2 * Runtime.getRuntime().availableProcessors() - 1);
+        ForkJoinPool forkJoinPool = new ForkJoinPool(2 * Runtime.getRuntime().availableProcessors() - 1);
         log.info("initialize pool size: {}", forkJoinPool.getParallelism());
         ForkJoinFetchEngineTask fetchTask = new ForkJoinFetchEngineTask(0, modelList.size() - 1, modelList);
         Future<Map<HttpRequestModel, String>> fetchResult = forkJoinPool.submit(fetchTask);
         try {
             returnValue = fetchResult.get();
-            if (fetchTask.isCompletedAbnormally()) {
-                Throwable throwable = fetchTask.getException();
-                //如何任务被取消了则返回CancellationException
-                if (throwable instanceof CancellationException) {
-                    log.error(throwable.getMessage(), throwable);
-                    log.info("the task was cancelled !");
-                } else {
-                    log.error(throwable.getMessage(), throwable);
-                }
-            }
+        } catch (CancellationException cancellationException) {
+            log.info("{} was cancelled.", fetchTask.getTaskName());
+            log.error(cancellationException.getMessage(), cancellationException);
+            throw cancellationException;
+        } catch (Exception e) {
+            log.error("{} get error. Exception msg: {}", fetchTask.getTaskName(), e.getMessage());
+            log.error(e.getMessage(), e);
+        } finally {
             forkJoinPool.shutdown();
-        } catch (InterruptedException e) {
-            log.error(e.getMessage(), e);
-        } catch (ExecutionException e) {
-            log.error(e.getMessage(), e);
         }
         long fetchFinish = TimeUtil.getMillisTimestamp();
         log.info("Fetch finished after: {}ms", (fetchFinish - fetchStart));
