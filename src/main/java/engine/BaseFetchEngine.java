@@ -20,10 +20,6 @@ public abstract class BaseFetchEngine {
      * 日志对象
      */
     private Logger logger = LoggerFactory.getLogger(getClass());
-    /**
-     * 超时时间（秒）
-     */
-    protected final int timeoutRequestTimes = 3;
 
     /**
      * 根据传入的请求结构体访问url，并返回结果。返回值的key是HttpRequestModel对象，value是http请求url的结果。
