@@ -20,6 +20,11 @@ import java.util.concurrent.RecursiveTask;
 public class ForkJoinFetchEngine extends BaseFetchEngine {
 
     /**
+     * 虚拟机可用cpu核数
+     */
+    public static final int AVAILABLE_PROCESSORS = Runtime.getRuntime().availableProcessors();
+
+    /**
      * log对象
      */
     private Logger log = LoggerFactory.getLogger(getClass());
@@ -31,7 +36,7 @@ public class ForkJoinFetchEngine extends BaseFetchEngine {
         Map<HttpRequestModel, String> returnValue = new HashMap<>();
         //执行任务的线程是任务树的叶子节点，需要让所有节点一起执行，需要把整棵树纳入到工作线程池中
         //即线程池的并发数等于树的节点数
-        ForkJoinPool forkJoinPool = new ForkJoinPool(2 * Runtime.getRuntime().availableProcessors() - 1);
+        ForkJoinPool forkJoinPool = new ForkJoinPool(2 * AVAILABLE_PROCESSORS - 1);
         log.info("initialize pool size: {}", forkJoinPool.getParallelism());
         ForkJoinFetchEngineTask fetchTask = new ForkJoinFetchEngineTask(0, modelList.size() - 1, modelList);
         Future<Map<HttpRequestModel, String>> fetchResult = forkJoinPool.submit(fetchTask);
@@ -101,7 +106,7 @@ public class ForkJoinFetchEngine extends BaseFetchEngine {
                 return returnValue;
             }
             //每个task只负责至多threshHold个操作。
-            int threshHold = modelList.size() / Runtime.getRuntime().availableProcessors();
+            int threshHold = modelList.size() / AVAILABLE_PROCESSORS;
             boolean startCompute = (end - start) <= threshHold;
             if (startCompute) {
                 //该任务的操作数量小于阀值，则开始计算。

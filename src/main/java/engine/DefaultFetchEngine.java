@@ -14,6 +14,7 @@ import java.util.Map;
  * Created by lijing on 2014/10/9.
  */
 public class DefaultFetchEngine extends BaseFetchEngine {
+
     /**
      * 日志对象
      */
